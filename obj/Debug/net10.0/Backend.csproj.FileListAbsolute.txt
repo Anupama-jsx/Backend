@@ -168,3 +168,4 @@
 /Users/anupama/Backend/bin/Debug/net10.0/runtimes/win-x64/native/msalruntime.dll
 /Users/anupama/Backend/bin/Debug/net10.0/runtimes/win-x86/native/msalruntime_x86.dll
 /Users/anupama/Backend/bin/Debug/net10.0/dotnet-tools.json
+/Users/anupama/Backend/obj/Debug/net10.0/Backend.sourcelink.json
