@@ -9,8 +9,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-var connectionString = builder.Configuration.GetConnectionString("TypeRush")
-    ?? throw new InvalidOperationException("Connection string 'TypeRush' was not found.");
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? throw new InvalidOperationException("Connection string 'DefaultConnection' was not found.");
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(connectionString));
@@ -19,7 +19,7 @@ builder.Services
     .AddIdentityCore<ApplicationUser>(options =>
     {
         options.User.RequireUniqueEmail = true;
-        options.Password.RequiredLength = 12;
+        options.Password.RequiredLength = 8;
         options.Password.RequireDigit = false;
         options.Password.RequireLowercase = true;
         options.Password.RequireUppercase = true;

@@ -16,8 +16,8 @@ public sealed class ApplicationDbContextFactory : IDesignTimeDbContextFactory<Ap
             .AddEnvironmentVariables()
             .Build();
 
-        var connectionString = configuration.GetConnectionString("TypeRush")
-            ?? throw new InvalidOperationException("Connection string 'TypeRush' was not found.");
+        var connectionString = configuration.GetConnectionString("DefaultConnection")
+            ?? throw new InvalidOperationException("Connection string 'DefaultConnection' was not found.");
 
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseSqlServer(connectionString)
