@@ -2,8 +2,11 @@ using Backend.Data;
 using Backend.Identity;
 using Backend.Repositories;
 using Backend.Services;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,6 +22,18 @@ var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get
 if (allowedOrigins.Length == 0)
 {
     throw new InvalidOperationException("CORS setting 'Cors:AllowedOrigins' must contain at least one origin.");
+}
+
+var jwtKey = builder.Configuration["Jwt:Key"]
+    ?? throw new InvalidOperationException("JWT setting 'Jwt:Key' was not found.");
+var jwtIssuer = builder.Configuration["Jwt:Issuer"]
+    ?? throw new InvalidOperationException("JWT setting 'Jwt:Issuer' was not found.");
+var jwtAudience = builder.Configuration["Jwt:Audience"]
+    ?? throw new InvalidOperationException("JWT setting 'Jwt:Audience' was not found.");
+
+if (Encoding.UTF8.GetByteCount(jwtKey) < 32)
+{
+    throw new InvalidOperationException("JWT setting 'Jwt:Key' must be at least 32 bytes long.");
 }
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
@@ -37,8 +52,26 @@ builder.Services
     })
     .AddEntityFrameworkStores<ApplicationDbContext>();
 
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = jwtIssuer,
+            ValidateAudience = true,
+            ValidAudience = jwtAudience,
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.Zero
+        };
+    });
+builder.Services.AddAuthorization();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IRegistrationService, RegistrationService>();
+builder.Services.AddScoped<ILoginService, LoginService>();
 builder.Services.AddCors(options =>
 {
     options.AddPolicy(CorsPolicyName, policy =>
@@ -66,6 +99,9 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 app.UseCors(CorsPolicyName);
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapControllers();
 

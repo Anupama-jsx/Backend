@@ -8,6 +8,8 @@ namespace Backend.Data;
 public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
     : IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>(options)
 {
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -40,5 +42,20 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
         builder.Entity<IdentityUserLogin<Guid>>().ToTable("UserLogins");
         builder.Entity<IdentityRoleClaim<Guid>>().ToTable("RoleClaims");
         builder.Entity<IdentityUserToken<Guid>>().ToTable("UserTokens");
+
+        builder.Entity<RefreshToken>(entity =>
+        {
+            entity.ToTable("RefreshTokens");
+            entity.HasKey(token => token.Id);
+            entity.Property(token => token.TokenHash).IsRequired().HasMaxLength(64);
+            entity.Property(token => token.CreatedAtUtc).HasDefaultValueSql("SYSUTCDATETIME()");
+            entity.Property(token => token.RowVersion).IsRowVersion();
+            entity.HasIndex(token => token.TokenHash).IsUnique();
+            entity.HasIndex(token => new { token.UserId, token.ExpiresAtUtc });
+            entity.HasOne(token => token.User)
+                .WithMany()
+                .HasForeignKey(token => token.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
     }
 }
