@@ -1,4 +1,5 @@
 using Backend.Identity;
+using Backend.Models.Racing;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -10,9 +11,14 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
 {
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
+    public DbSet<Passage> Passages => Set<Passage>();
+    public DbSet<Race> Races => Set<Race>();
+    public DbSet<RaceParticipant> RaceParticipants => Set<RaceParticipant>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+        builder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
 
         builder.Entity<ApplicationUser>(entity =>
         {

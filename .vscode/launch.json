@@ -1,11 +1,22 @@
 {
   "version": "0.2.0",
   "configurations": [
+
     {
       "name": "C#: Launch Startup Project",
       "type": "dotnet",
       "request": "launch",
       "projectPath": "${workspaceFolder}/Backend.csproj"
+    },
+    {
+      "name": "C#: Debug Backend DLL (fallback)",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build Backend",
+      "program": "${workspaceFolder}/bin/Debug/net10.0/Backend.dll",
+      "cwd": "${workspaceFolder}",
+      "console": "internalConsole",
+      "stopAtEntry": false
     }
   ]
 }

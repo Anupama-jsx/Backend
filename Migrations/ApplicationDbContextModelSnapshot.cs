@@ -148,6 +148,172 @@ namespace Backend.Migrations
                     b.ToTable("RefreshTokens", (string)null);
                 });
 
+            modelBuilder.Entity("Backend.Models.Racing.Passage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Passages", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Passages_Content", "LEN(LTRIM(RTRIM([Content]))) > 0");
+                        });
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("118f5ad7-31de-4713-93df-c26a6d683012"),
+                            Content = "Small steps lead to steady progress. Take your time, find your rhythm, and focus on each word. Every race is another chance to learn and improve.",
+                            CreatedAtUtc = new DateTime(2026, 11, 17, 0, 0, 0, 0, DateTimeKind.Utc)
+                        });
+                });
+
+            modelBuilder.Entity("Backend.Models.Racing.Race", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<int>("DurationSeconds")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("EndedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("HostUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("PassageId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("RoomCode")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("nvarchar(8)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<DateTime?>("StartsAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("HostUserId");
+
+                    b.HasIndex("PassageId");
+
+                    b.HasIndex("RoomCode")
+                        .IsUnique();
+
+                    b.ToTable("Races", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Races_DurationSeconds", "[DurationSeconds] > 0");
+
+                            t.HasCheckConstraint("CK_Races_Status", "[Status] IN ('Waiting', 'Countdown', 'Running', 'Completed', 'Cancelled')");
+
+                            t.HasCheckConstraint("CK_Races_Timing", "[EndedAtUtc] IS NULL OR [StartsAtUtc] IS NULL OR [EndedAtUtc] >= [StartsAtUtc]");
+                        });
+                });
+
+            modelBuilder.Entity("Backend.Models.Racing.RaceParticipant", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal?>("AccuracyPercentage")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<int?>("CorrectCharacterAttempts")
+                        .HasColumnType("int");
+
+                    b.Property<long?>("ElapsedMilliseconds")
+                        .HasColumnType("bigint");
+
+                    b.Property<int?>("FinalCorrectCharacters")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("FinishedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("JoinedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<Guid>("RaceId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<int?>("TotalCharacterAttempts")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal?>("Wpm")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("decimal(12,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("RaceId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("RaceParticipants", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_RaceParticipants_Accuracy", "[AccuracyPercentage] IS NULL OR [AccuracyPercentage] BETWEEN 0 AND 100");
+
+                            t.HasCheckConstraint("CK_RaceParticipants_Attempts", "([TotalCharacterAttempts] IS NULL OR [TotalCharacterAttempts] >= 0) AND ([CorrectCharacterAttempts] IS NULL OR [CorrectCharacterAttempts] >= 0) AND ([CorrectCharacterAttempts] IS NULL OR [TotalCharacterAttempts] IS NULL OR [CorrectCharacterAttempts] <= [TotalCharacterAttempts])");
+
+                            t.HasCheckConstraint("CK_RaceParticipants_Elapsed", "[ElapsedMilliseconds] IS NULL OR [ElapsedMilliseconds] >= 0");
+
+                            t.HasCheckConstraint("CK_RaceParticipants_FinalCorrectCharacters", "[FinalCorrectCharacters] IS NULL OR [FinalCorrectCharacters] >= 0");
+
+                            t.HasCheckConstraint("CK_RaceParticipants_Status", "[Status] IN ('Joined', 'Finished', 'TimedOut', 'Left')");
+
+                            t.HasCheckConstraint("CK_RaceParticipants_Wpm", "[Wpm] IS NULL OR [Wpm] >= 0");
+                        });
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole<System.Guid>", b =>
                 {
                     b.Property<Guid>("Id")
@@ -290,6 +456,41 @@ namespace Backend.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("Backend.Models.Racing.Race", b =>
+                {
+                    b.HasOne("Backend.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("HostUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Backend.Models.Racing.Passage", "Passage")
+                        .WithMany()
+                        .HasForeignKey("PassageId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Passage");
+                });
+
+            modelBuilder.Entity("Backend.Models.Racing.RaceParticipant", b =>
+                {
+                    b.HasOne("Backend.Models.Racing.Race", "Race")
+                        .WithMany("Participants")
+                        .HasForeignKey("RaceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Backend.Identity.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Race");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole<System.Guid>", null)
@@ -339,6 +540,11 @@ namespace Backend.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Backend.Models.Racing.Race", b =>
+                {
+                    b.Navigation("Participants");
                 });
 #pragma warning restore 612, 618
         }

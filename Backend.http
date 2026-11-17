@@ -21,3 +21,8 @@ Content-Type: application/json
 {
   "refreshToken": "paste-the-refresh-token-from-login-here"
 }
+
+###
+
+GET {{Backend_HostAddress}}/api/dashboard
+Authorization: Bearer paste-the-access-token-from-login-here

@@ -22,7 +22,7 @@ var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get
 if (allowedOrigins.Length == 0)
 {
     throw new InvalidOperationException("CORS setting 'Cors:AllowedOrigins' must contain at least one origin.");
-}
+}   
 
 var jwtKey = builder.Configuration["Jwt:Key"]
     ?? throw new InvalidOperationException("JWT setting 'Jwt:Key' was not found.");
@@ -72,6 +72,7 @@ builder.Services.AddAuthorization();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IRegistrationService, RegistrationService>();
 builder.Services.AddScoped<ILoginService, LoginService>();
+builder.Services.AddScoped<RoomService>();
 builder.Services.AddCors(options =>
 {
     options.AddPolicy(CorsPolicyName, policy =>
