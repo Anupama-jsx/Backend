@@ -1,0 +1,45 @@
+@baseUrl = https://localhost:7244
+@token = REPLACE_WITH_ACCESS_TOKEN
+@roomCode = REPLACE_WITH_CREATED_ROOM_CODE
+
+### Create a room as host: expect 201, Waiting, and a room code.
+POST {{baseUrl}}/api/rooms
+Authorization: Bearer {{token}}
+
+### Join using another user's token: expect 200.
+### Repeat with the same token: expect 200 and only one participant row.
+POST {{baseUrl}}/api/rooms/join
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"roomCode":"{{roomCode}}"}
+
+### Malformed code: expect 400.
+POST {{baseUrl}}/api/rooms/join
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"roomCode":"!"}
+
+### Missing authentication: expect 401.
+POST {{baseUrl}}/api/rooms/join
+Content-Type: application/json
+
+{"roomCode":"{{roomCode}}"}
+
+### Unknown valid-format code: expect 404, provided this code does not exist.
+POST {{baseUrl}}/api/rooms/join
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"roomCode":"00000000"}
+
+### SQL Server integration checks to run with distinct test users:
+# 1. Join nine users in addition to the host. The next new user receives 409.
+# 2. With nine participants, send two distinct joins concurrently.
+#    Exactly one succeeds, one receives 409, and the count remains ten.
+# 3. Send two concurrent joins for the same new user. Both return 200;
+#    only one (RaceId, UserId) row exists.
+# 4. Change a test race to Countdown. A new user receives 409;
+#    an existing participant's retry still returns 200.
+# 5. Submit the existing code in lowercase with surrounding spaces: expect 200.
