@@ -1,4 +1,5 @@
 using Backend.Data;
+using Backend.Hubs;
 using Backend.Identity;
 using Backend.Repositories;
 using Backend.Services;
@@ -56,6 +57,20 @@ builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
+        // Browsers send the WebSocket JWT in the query string.
+        // Accept it only on this hub's path.
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var token = context.Request.Query["access_token"];
+                if (!string.IsNullOrEmpty(token) &&
+                    (
+                     context.HttpContext.Request.Path.StartsWithSegments("/hubs/race")))
+                    context.Token = token;
+                return Task.CompletedTask;
+            }
+        };
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
@@ -79,9 +94,14 @@ builder.Services.AddCors(options =>
     {
         policy.WithOrigins(allowedOrigins)
             .AllowAnyHeader()
-            .AllowAnyMethod();
+            .AllowAnyMethod()
+            // SignalR's browser client negotiates a credentialed connection by default.
+            // Origins remain explicitly allow-listed above.
+            .AllowCredentials();
     });
 });
+builder.Services.AddSignalR();
+builder.Services.AddHostedService<RaceLifecycleService>();
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 builder.Services.AddEndpointsApiExplorer();
@@ -105,6 +125,13 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<RaceHub>("/hubs/race", options =>
+{
+    options.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransportType.WebSockets;
+    options.CloseOnAuthenticationExpiration = true;
+});
+
+
 
 var summaries = new[]
 {

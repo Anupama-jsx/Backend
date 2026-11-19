@@ -1,9 +1,15 @@
 @baseUrl = https://localhost:7244
 @token = REPLACE_WITH_ACCESS_TOKEN
 @roomCode = REPLACE_WITH_CREATED_ROOM_CODE
+@raceId = REPLACE_WITH_CREATED_RACE_ID
 
 ### Create a room as host: expect 201, Waiting, and a room code.
 POST {{baseUrl}}/api/rooms
+Authorization: Bearer {{token}}
+
+### Start a room as its host: expect 200 and a RaceCountdownStarted SignalR event.
+### Five seconds later, subscribed clients receive RaceStarted and can enable typing.
+POST {{baseUrl}}/api/rooms/{{raceId}}/start
 Authorization: Bearer {{token}}
 
 ### Join using another user's token: expect 200.

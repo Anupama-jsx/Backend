@@ -8,7 +8,65 @@ namespace Backend.Services;
 
 public sealed class RoomService(ApplicationDbContext db)
 {
-    public const int MaxParticipants = 10;
+    public const int MaxParticipants = 2;
+    public const int CountdownSeconds = 5;
+
+    public async Task<StartRaceResult> StartAsync(
+        Guid userId, Guid raceId, CancellationToken cancellationToken)
+    {
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        // Use the same lock ordering as JoinAsync so that a start cannot race a join.
+        var race = await db.Races
+            .FromSqlInterpolated($"SELECT * FROM [Races] WITH (UPDLOCK, HOLDLOCK) WHERE [Id] = {raceId}")
+            .Include(r => r.Passage)
+            .SingleOrDefaultAsync(cancellationToken);
+        if (race is null) return new(StartRaceOutcome.NotFound);
+
+        var participant = await db.RaceParticipants.AsNoTracking().SingleOrDefaultAsync(
+            p => p.RaceId == raceId && p.UserId == userId, cancellationToken);
+        if (participant is null || participant.Status == RaceParticipantStatus.Left)
+            return new(StartRaceOutcome.NotParticipant);
+        if (race.HostUserId != userId) return new(StartRaceOutcome.NotHost);
+
+        if (race.Status is RaceStatus.Countdown or RaceStatus.Running)
+        {
+            await transaction.CommitAsync(cancellationToken);
+            return new(StartRaceOutcome.AlreadyStarted, ToLiveResponse(race));
+        }
+
+        if (race.Status != RaceStatus.Waiting)
+            return new(StartRaceOutcome.Unavailable);
+
+        // StartsAtUtc is the moment typing becomes active, not the moment the host
+        // pressed Start. Every client can calculate the same five-second countdown.
+        race.Status = RaceStatus.Countdown;
+        race.StartsAtUtc = DateTime.UtcNow.AddSeconds(CountdownSeconds);
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return new(StartRaceOutcome.Started, ToLiveResponse(race));
+    }
+
+    public static RaceLiveResponse ToLiveResponse(Race race)
+    {
+        // SQL Server datetime2 does not retain DateTime.Kind. Restore the UTC
+        // contract before serializing, otherwise browsers interpret it as local time.
+        DateTime? startsAtUtc = race.StartsAtUtc is DateTime startsAt
+            ? DateTime.SpecifyKind(startsAt, DateTimeKind.Utc)
+            : null;
+        DateTime? endedAtUtc = race.EndedAtUtc is DateTime endedAt
+            ? DateTime.SpecifyKind(endedAt, DateTimeKind.Utc)
+            : null;
+
+        return new(
+            race.Id,
+            DateTime.UtcNow,
+            race.Status.ToString(),
+            startsAtUtc,
+            endedAtUtc ?? startsAtUtc?.AddSeconds(race.DurationSeconds),
+            race.DurationSeconds,
+            race.Status == RaceStatus.Countdown ? CountdownSeconds : 0,
+            race.Status is RaceStatus.Running or RaceStatus.Completed ? race.Passage.Content : null);
+    }
 
     public async Task<JoinRoomResult> JoinAsync(
         Guid userId, string roomCode, CancellationToken cancellationToken)
