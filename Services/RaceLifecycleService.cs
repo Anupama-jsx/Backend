@@ -65,6 +65,11 @@ public sealed class RaceLifecycleService(
         foreach (var runningRace in runningRaces.Where(r =>
                      r.StartsAtUtc!.Value.AddSeconds(r.DurationSeconds) <= now))
         {
+            await db.RaceParticipants
+                .Where(p => p.RaceId == runningRace.Id && p.Status == RaceParticipantStatus.Joined)
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(p => p.Status, RaceParticipantStatus.TimedOut)
+                    .SetProperty(p => p.ElapsedMilliseconds, (long)runningRace.DurationSeconds * 1_000), cancellationToken);
             var updated = await db.Races
                 .Where(r => r.Id == runningRace.Id && r.Status == RaceStatus.Running)
                 .ExecuteUpdateAsync(setters => setters

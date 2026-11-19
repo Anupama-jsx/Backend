@@ -110,9 +110,11 @@ public sealed class RaceHub(ApplicationDbContext db, RoomService rooms) : Hub
             ? 100m
             : decimal.Round(update.CorrectCharacterAttempts * 100m / update.TotalCharacterAttempts, 2);
 
-        var participant = await db.RaceParticipants.SingleOrDefaultAsync(
-            p => p.RaceId == raceId && p.UserId == userId && p.Status == RaceParticipantStatus.Joined,
-            Context.ConnectionAborted);
+        var participant = await db.RaceParticipants
+            .Include(p => p.User)
+            .SingleOrDefaultAsync(p => p.RaceId == raceId && p.UserId == userId &&
+                                       p.Status == RaceParticipantStatus.Joined,
+                Context.ConnectionAborted);
         if (participant is null) throw new HubException("You cannot report progress for this race.");
         participant.ElapsedMilliseconds = elapsedMilliseconds;
         participant.Wpm = wpm;
@@ -120,10 +122,33 @@ public sealed class RaceHub(ApplicationDbContext db, RoomService rooms) : Hub
         participant.TotalCharacterAttempts = update.TotalCharacterAttempts;
         participant.CorrectCharacterAttempts = update.CorrectCharacterAttempts;
         participant.FinalCorrectCharacters = update.CorrectCharacters;
+        if (update.CorrectCharacters == passageLength)
+        {
+            participant.Status = RaceParticipantStatus.Finished;
+            participant.FinishedAtUtc = DateTime.UtcNow;
+        }
         await db.SaveChangesAsync(Context.ConnectionAborted);
 
         var progress = new RaceProgressResponse(
-            raceId, userId, update.CorrectCharacters, passageLength, wpm, accuracy);
+            raceId, userId, participant.User.UserName!, update.CorrectCharacters, passageLength, wpm, accuracy);
         await Clients.Group(RoomGroup(raceId)).SendAsync("ParticipantProgress", progress, Context.ConnectionAborted);
+
+        if (participant.Status != RaceParticipantStatus.Finished) return;
+        var anyRacerStillTyping = await db.RaceParticipants.AsNoTracking().AnyAsync(
+            p => p.RaceId == raceId && p.Status == RaceParticipantStatus.Joined,
+            Context.ConnectionAborted);
+        if (anyRacerStillTyping) return;
+
+        var completedAtUtc = DateTime.UtcNow;
+        var completed = await db.Races
+            .Where(r => r.Id == raceId && r.Status == RaceStatus.Running)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(r => r.Status, RaceStatus.Completed)
+                .SetProperty(r => r.EndedAtUtc, completedAtUtc), Context.ConnectionAborted);
+        if (completed != 1) return;
+        var completedRace = await db.Races.AsNoTracking().Include(r => r.Passage)
+            .SingleAsync(r => r.Id == raceId, Context.ConnectionAborted);
+        await Clients.Group(RoomGroup(raceId))
+            .SendAsync("RaceCompleted", RoomService.ToLiveResponse(completedRace), Context.ConnectionAborted);
     }
 }

@@ -22,6 +22,7 @@ public sealed record RaceProgressUpdate(
 public sealed record RaceProgressResponse(
     Guid RaceId,
     Guid UserId,
+    string DisplayName,
     int CorrectCharacters,
     int PassageLength,
     decimal Wpm,
